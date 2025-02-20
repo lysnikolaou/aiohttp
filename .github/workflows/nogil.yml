@@ -1,0 +1,63 @@
+on:
+    push:
+    workflow_dispatch:
+
+jobs:
+    regular:
+      continue-on-error: true
+      runs-on: ubuntu-latest
+      strategy:
+        matrix:
+          python-version: [3.13-dev, 3.14-dev]
+      name: regular
+      steps:
+        - uses: actions/checkout@v2
+        - uses: deadsnakes/action@v3.2.0
+          with:
+            python-version: ${{ matrix.python-version }}
+            nogil: true
+        - run: python --version
+        - run: python -m pip install --upgrade pip
+        - run: chmod +x build.sh
+        - run: ./build.sh
+        - run: pytest --cov-append -s -v
+
+    tsan:
+      continue-on-error: true
+      runs-on: macos-latest
+      strategy:
+        matrix:
+          python-version: [3.13, 3.14-dev, 3.14t-dev]
+      name: tsan
+      steps:
+        - uses: actions/checkout@v2
+        - name: Set up pyenv
+          run: |
+            git clone https://github.com/pyenv/pyenv.git "$HOME/.pyenv"
+            PYENV_ROOT="$HOME/.pyenv"
+            PYENV_BIN="$PYENV_ROOT/bin"
+            PYENV_SHIMS="$PYENV_ROOT/shims"
+            echo "$PYENV_BIN" >> $GITHUB_PATH
+            echo "$PYENV_SHIMS" >> $GITHUB_PATH
+            echo "PYENV_ROOT=$PYENV_ROOT" >> $GITHUB_ENV
+        - name: Check pyenv is working
+          run:
+            pyenv --version
+        - name: Set up LLVM
+          run: |
+            brew install llvm@19
+            LLVM_PREFIX=$(brew --prefix llvm@19)
+            echo CC="$LLVM_PREFIX/bin/clang" >> $GITHUB_ENV
+            echo CXX="$LLVM_PREFIX/bin/clang++" >> $GITHUB_ENV
+            echo LDFLAGS="-L$LLVM_PREFIX/lib" >> $GITHUB_ENV
+            echo CPPFLAGS="-I$LLVM_PREFIX/include" >> $GITHUB_ENV
+        - name: Build Python with address sanitizer
+          run: |
+            CONFIGURE_OPTS="--with-address-sanitizer" pyenv install ${{ matrix.python-version }}
+            pyenv global ${{ matrix.python-version }}
+        - run: python --version
+        - run: python -m pip install --upgrade pip
+        - run: chmod +x build.sh
+        - run: ./build.sh
+        - run: python -m pytest --cov-append -s -v
+

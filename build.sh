@@ -22,5 +22,5 @@ make cythonize-nodeps
 python -m pip install .
 
 # Test dependencies
-python -m pip install pytest-xdist pytest-cov pytest-xdist pytest-mock pytest-codspeed freezegun proxy-py
+python -m pip install pytest-cov pytest-mock pytest-codspeed freezegun proxy-py
 python -m pip install git+https://github.com/lysnikolaou/brotli@free-threaded-slot
